@@ -1,6 +1,6 @@
-# models.py
 import datetime
 from . import db
+
 
 class URLMap(db.Model):
     id = db.Column(db.Integer, primary_key=True)
