@@ -1,5 +1,6 @@
 # yacut/views.py
-from flask import Blueprint, render_template, redirect, url_for, flash, request, current_app
+from flask import (Blueprint, render_template, redirect,
+                   flash, request, current_app)
 from . import db
 from .models import URLMap
 from .forms import LinkForm, FileUploadForm
@@ -7,6 +8,7 @@ from .utils import get_unique_short_id, upload_files_to_disk
 from .config import Config
 
 main = Blueprint('main', __name__)
+
 
 @main.route('/', methods=['GET', 'POST'])
 def index():
@@ -19,11 +21,15 @@ def index():
 
         if custom:
             if custom.lower() == 'files':
-                error_message = 'Предложенный вариант короткой ссылки уже существует.'
-                return render_template('index.html', form=form, error_message=error_message)
+                error_message = (
+                    'Предложенный вариант короткой ссылки уже существует.')
+                return render_template(
+                    'index.html', form=form, error_message=error_message)
             if URLMap.query.filter_by(short=custom).first() is not None:
-                error_message = 'Предложенный вариант короткой ссылки уже существует.'
-                return render_template('index.html', form=form, error_message=error_message)
+                error_message = (
+                    'Предложенный вариант короткой ссылки уже существует.')
+                return render_template(
+                    'index.html', form=form, error_message=error_message)
             short = custom
         else:
             short = get_unique_short_id()
@@ -32,10 +38,12 @@ def index():
         db.session.add(url_map)
         db.session.commit()
         short_url = request.host_url + short
-        message = f'Ваша короткая ссылка: <a href="{short_url}">{short_url}</a>'
+        message = (
+            f'Ваша короткая ссылка: <a href="{short_url}">{short_url}</a>')
         return render_template('index.html', form=form, message=message)
 
     return render_template('index.html', form=form)
+
 
 @main.route('/files', methods=['GET', 'POST'])
 def file_upload():
@@ -71,9 +79,11 @@ def file_upload():
 
         db.session.commit()
         flash('Файлы успешно загружены!', 'success')
-        return render_template('file_upload.html', form=form, file_links=file_links)
+        return render_template(
+            'file_upload.html', form=form, file_links=file_links)
 
     return render_template('file_upload.html', form=form)
+
 
 @main.route('/<short>')
 def redirect_short(short):

@@ -7,13 +7,16 @@ from .utils import get_unique_short_id
 
 api = Blueprint('api', __name__, url_prefix='/api')
 
+
 @api.route('/id/', methods=['POST'])
 def create_short_link():
     data = request.get_json(silent=True)
     if not data:
-        return jsonify({'message': 'Отсутствует тело запроса'}), 400
+        msg = 'Отсутствует тело запроса'
+        return jsonify({'message': msg}), 400
     if 'url' not in data:
-        return jsonify({'message': '"url" является обязательным полем!'}), 400
+        msg = '"url" является обязательным полем!'
+        return jsonify({'message': msg}), 400
 
     original = data['url']
     custom = data.get('custom_id')
@@ -23,9 +26,12 @@ def create_short_link():
             short = get_unique_short_id()
         else:
             if not re.match(r'^[A-Za-z0-9]+$', custom) or len(custom) > 16:
-                return jsonify({'message': 'Указано недопустимое имя для короткой ссылки'}), 400
-            if URLMap.query.filter_by(short=custom).first() or custom.lower() == 'files':
-                return jsonify({'message': 'Предложенный вариант короткой ссылки уже существует.'}), 400
+                msg = 'Указано недопустимое имя для короткой ссылки'
+                return jsonify({'message': msg}), 400
+            if (URLMap.query.filter_by(short=custom).first()
+                    or custom.lower() == 'files'):
+                msg = 'Предложенный вариант короткой ссылки уже существует.'
+                return jsonify({'message': msg}), 400
             short = custom
     else:
         short = get_unique_short_id()
@@ -34,10 +40,12 @@ def create_short_link():
     db.session.add(url_map)
     db.session.commit()
 
-    return jsonify({
+    response_data = {
         'url': original,
         'short_link': f'{request.host_url}{short}',
-    }), 201
+    }
+    return jsonify(response_data), 201
+
 
 @api.route('/id/<short_id>/', methods=['GET'])
 def get_original(short_id):
