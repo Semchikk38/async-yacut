@@ -6,22 +6,6 @@
     Создайте короткую ссылку автоматически или предложите свой вариант
   </p>
 
-  {% if error_message %}
-    <div class="row my-3 justify-content-center">
-      <div class="col-sm-6">
-        <div class="alert alert-danger">{{ error_message }}</div>
-      </div>
-    </div>
-  {% endif %}
-
-  {% if message %}
-    <div class="row my-3 justify-content-center">
-      <div class="col-sm-6">
-        <div class="alert alert-success">{{ message | safe }}</div>
-      </div>
-    </div>
-  {% endif %}
-
   <div class="row my-3 justify-content-center">
     <div class="col-sm-6">
       <form method="POST">
@@ -44,5 +28,19 @@
       </form>
     </div>
   </div>
+
+  {% with messages = get_flashed_messages() %}
+    {% if messages %}
+      <div class="row justify-content-center">
+        <div class="col-sm-6">
+          {% for message in messages %}
+            <div class="alert alert-success text-center">
+              {{ message|safe }}
+            </div>
+          {% endfor %}
+        </div>
+      </div>
+    {% endif %}
+  {% endwith %}
 </section>
 {% endblock %}

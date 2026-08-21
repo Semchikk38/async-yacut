@@ -1,6 +1,16 @@
 import datetime
+import secrets
+
+from flask import url_for
+
 from . import db
-from .constants import SHORT_MAX_LENGTH, ORIGINAL_MAX_LENGTH
+from .constants import (
+    ORIGINAL_MAX_LENGTH,
+    SHORT_MAX_LENGTH,
+    SHORT_LENGTH,
+    MAX_ATTEMPTS,
+    ALLOWED_CHARS,
+)
 
 
 class URLMap(db.Model):
@@ -23,3 +33,22 @@ class URLMap(db.Model):
     @staticmethod
     def get_by_original(original):
         return URLMap.query.filter_by(original=original).first()
+
+    @staticmethod
+    def generate_unique_short():
+        for _ in range(MAX_ATTEMPTS):
+            short = ''.join(
+                secrets.choice(ALLOWED_CHARS) for _ in range(SHORT_LENGTH)
+            )
+            if not URLMap.get_by_short(short):
+                return short
+        raise RuntimeError('Не удалось сгенерировать уникальную ссылку')
+
+    def get_short_url(self):
+        return url_for('main.redirect_short', short=self.short, _external=True)
+
+    def to_dict(self):
+        return {
+            'url': self.original,
+            'short_link': self.get_short_url(),
+        }
