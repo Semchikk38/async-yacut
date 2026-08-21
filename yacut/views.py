@@ -1,8 +1,10 @@
 from http import HTTPStatus
 
 from flask import Blueprint, render_template, redirect, flash, abort
+from sqlalchemy.exc import IntegrityError
 
-from .constants import ALREADY_EXISTS, FORBIDDEN_SHORT
+from . import db
+from .constants import ALREADY_EXISTS, FORBIDDEN_SHORT, REDIRECT_ENDPOINT
 from .forms import LinkForm, FileUploadForm
 from .models import URLMap
 from .utils import upload_files_to_disk
@@ -17,20 +19,22 @@ def index():
         return render_template('index.html', form=form)
 
     original = form.original_link.data
-    custom_id = form.custom_id.data
+    short = form.custom_id.data
 
-    if custom_id:
-        if custom_id == FORBIDDEN_SHORT or URLMap.get(custom_id):
+    if short:
+        if short == FORBIDDEN_SHORT:
             flash(ALREADY_EXISTS)
             return render_template('index.html', form=form)
-        short = custom_id
+        if URLMap.get(short):
+            flash(ALREADY_EXISTS)
+            return render_template('index.html', form=form)
     else:
-        short = URLMap.generate_unique_short()
+        short = None
 
     try:
         url_map = URLMap.create(original=original, short=short)
-    except Exception:
-        flash('Не удалось создать короткую ссылку')
+    except IntegrityError as exc:
+        flash(str(exc))
         return render_template('index.html', form=form)
 
     return render_template('index.html', form=form,
@@ -52,20 +56,26 @@ def file_upload():
         flash(f'Ошибка при загрузке файлов: {exc}')
         return render_template('file_upload.html', form=form)
 
-    file_links = []
-    for filename, public_url in zip([f.filename for f in files], public_urls):
-        try:
-            url_map = URLMap.create(original=public_url)
-        except Exception:
-            flash('Не удалось создать короткую ссылку для файла')
-            return render_template('file_upload.html', form=form)
-        file_links.append((filename, url_map.get_short_url()))
+    try:
+        file_links = [
+            (filename, URLMap.create(original=public_url,
+                                     short=None,
+                                     commit=False).get_short_url())
+            for filename, public_url in zip(
+                [f.filename for f in files], public_urls
+            )
+        ]
+        db.session.commit()
+    except IntegrityError as exc:
+        db.session.rollback()
+        flash(str(exc))
+        return render_template('file_upload.html', form=form)
 
     return render_template('file_upload.html', form=form,
                            file_links=file_links)
 
 
-@main.route('/<short>', endpoint='redirect_short')
+@main.route('/<short>', endpoint=REDIRECT_ENDPOINT)
 def redirect_short(short):
     url_map = URLMap.get(short)
     if not url_map:

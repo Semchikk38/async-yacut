@@ -5,16 +5,22 @@ import aiohttp
 
 from .config import Config
 
-AUTH_HEADERS = {'Authorization': f'OAuth {Config.DISK_TOKEN}'}
-RESOURCE_URL = (
-    f'{Config.DISK_API_HOST}/{Config.DISK_API_VERSION}/disk/resources'
+DISK_API_HOST = 'https://cloud-api.yandex.net'
+DISK_API_VERSION = 'v1'
+REQUEST_UPLOAD_URL = (
+    f'{DISK_API_HOST}/{DISK_API_VERSION}/disk/resources/upload'
 )
+DOWNLOAD_LINK_URL = (
+    f'{DISK_API_HOST}/{DISK_API_VERSION}/disk/resources/download'
+)
+
+AUTH_HEADERS = {'Authorization': f'OAuth {Config.DISK_TOKEN}'}
 
 
 async def _upload_single_file(session, file_storage, filename):
     headers = AUTH_HEADERS
     params = {'path': f'app:/{filename}', 'overwrite': 'true'}
-    async with session.get(Config.REQUEST_UPLOAD_URL,
+    async with session.get(REQUEST_UPLOAD_URL,
                            headers=headers,
                            params=params) as resp:
         resp.raise_for_status()
@@ -27,21 +33,12 @@ async def _upload_single_file(session, file_storage, filename):
         resp.raise_for_status()
         file_path = unquote(resp.headers['Location']).replace('/disk', '')
 
-    async with session.get(Config.DOWNLOAD_LINK_URL,
+    async with session.get(DOWNLOAD_LINK_URL,
                            headers=headers,
                            params={'path': file_path}) as resp:
         resp.raise_for_status()
-
-    async with session.put(Config.PUBLISH_URL,
-                           headers=headers,
-                           params={'path': file_path}) as resp:
-        resp.raise_for_status()
-    async with session.get(RESOURCE_URL,
-                           headers=headers,
-                           params={'path': file_path,
-                                   'fields': 'public_url'}) as resp:
-        resp.raise_for_status()
-        return (await resp.json())['public_url']
+        download_data = await resp.json()
+        return download_data['href']
 
 
 async def _upload_files(files_list):

@@ -17,4 +17,5 @@ ALREADY_EXISTS = 'Предложенный вариант короткой сс�
 NOT_FOUND = 'Указанный id не найден'
 INVALID_SHORT_FORM = 'Только латинские буквы и цифры'
 
-REDIRECT_ENDPOINT = 'main.redirect_short'
+REDIRECT_ENDPOINT = 'redirect_short'
+REDIRECT_URL_FUNC = 'main.redirect_short'
