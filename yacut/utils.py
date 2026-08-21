@@ -2,9 +2,11 @@
 import asyncio
 import aiohttp
 from urllib.parse import unquote
-from .models import URLMap
 import string
 import secrets
+
+from .models import URLMap
+from .constants import SHORT_ID_REGEX
 
 CHARS = string.ascii_letters + string.digits
 DISK_API_HOST = 'https://cloud-api.yandex.net'
@@ -81,5 +83,9 @@ def upload_files_to_disk(files_list, token):
 def get_unique_short_id(length=6):
     while True:
         short = ''.join(secrets.choice(CHARS) for _ in range(length))
-        if not URLMap.query.filter_by(short=short).first():
+        if not URLMap.get_by_short(short):
             return short
+
+
+def is_valid_short_id(short):
+    return bool(SHORT_ID_REGEX.match(short))
