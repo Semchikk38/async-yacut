@@ -10,6 +10,8 @@ from .constants import (
     SHORT_LENGTH,
     MAX_ATTEMPTS,
     ALLOWED_CHARS,
+    FORBIDDEN_SHORT,
+    REDIRECT_ENDPOINT,
 )
 
 
@@ -20,19 +22,17 @@ class URLMap(db.Model):
     timestamp = db.Column(db.DateTime, default=datetime.datetime.utcnow)
 
     @staticmethod
-    def create(original, short):
+    def create(original, short=None):
+        if short is None:
+            short = URLMap.generate_unique_short()
         url_map = URLMap(original=original, short=short)
         db.session.add(url_map)
         db.session.commit()
         return url_map
 
     @staticmethod
-    def get_by_short(short):
+    def get(short):
         return URLMap.query.filter_by(short=short).first()
-
-    @staticmethod
-    def get_by_original(original):
-        return URLMap.query.filter_by(original=original).first()
 
     @staticmethod
     def generate_unique_short():
@@ -40,15 +40,12 @@ class URLMap(db.Model):
             short = ''.join(
                 secrets.choice(ALLOWED_CHARS) for _ in range(SHORT_LENGTH)
             )
-            if not URLMap.get_by_short(short):
+            if short != FORBIDDEN_SHORT and not URLMap.get(short):
                 return short
-        raise RuntimeError('Не удалось сгенерировать уникальную ссылку')
+        raise RuntimeError(
+            'Не удалось сгенерировать уникальную ссылку '
+            f'за {MAX_ATTEMPTS} попыток'
+        )
 
     def get_short_url(self):
-        return url_for('main.redirect_short', short=self.short, _external=True)
-
-    def to_dict(self):
-        return {
-            'url': self.original,
-            'short_link': self.get_short_url(),
-        }
+        return url_for(REDIRECT_ENDPOINT, short=self.short, _external=True)

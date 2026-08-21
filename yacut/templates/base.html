@@ -6,9 +6,6 @@
   <link rel="stylesheet" href="{{ url_for('static', filename='css/bootstrap.min.css') }}">
   <title>{% block title %}YaCut - укоротитель ссылок{% endblock %}</title>
   <link rel="icon" href="{{ url_for('static', filename='img/fav/fav.ico') }}" type="image">
-  <link rel="apple-touch-icon" sizes="180x180" href="{{ url_for('static', filename='img/fav/apple-touch-icon.png') }}">
-  <link rel="icon" type="image/png" sizes="32x32" href="{{ url_for('static', filename='img/fav/favicon-32x32.png') }}">
-  <link rel="icon" type="image/png" sizes="16x16" href="{{ url_for('static', filename='img/fav/favicon-16x16.png') }}">
 </head>
 <body>
   <header>
@@ -28,6 +25,14 @@
     </nav>
   </header>
   <main class="container mt-5 pt-5">
+    {% for message in get_flashed_messages() %}
+      <div class="alert alert-danger alert-dismissible fade show" role="alert">
+        {{ message }}
+        <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+    {% endfor %}
     {% block content %}{% endblock %}
   </main>
   <footer class="fixed-bottom border-top text-center py-3 bg-light">

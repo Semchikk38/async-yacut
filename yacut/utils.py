@@ -1,11 +1,15 @@
 import asyncio
-
-import aiohttp
 from urllib.parse import unquote
 
+import aiohttp
+
 from .config import Config
+from .models import URLMap
 
 AUTH_HEADERS = {'Authorization': f'OAuth {Config.DISK_TOKEN}'}
+RESOURCE_URL = (
+    f'{Config.DISK_API_HOST}/{Config.DISK_API_VERSION}/disk/resources'
+)
 
 
 async def _upload_single_file(session, file_storage, filename):
@@ -19,8 +23,8 @@ async def _upload_single_file(session, file_storage, filename):
         upload_url = upload_data['href']
         method = upload_data.get('method', 'PUT')
 
-    file_data = file_storage.read()
-    async with session.request(method, upload_url, data=file_data) as resp:
+    async with session.request(method, upload_url,
+                               data=file_storage.read()) as resp:
         resp.raise_for_status()
         file_path = unquote(resp.headers['Location']).replace('/disk', '')
 
@@ -33,13 +37,12 @@ async def _upload_single_file(session, file_storage, filename):
                            headers=headers,
                            params={'path': file_path}) as resp:
         resp.raise_for_status()
-    async with session.get(
-        f'{Config.DISK_API_HOST}/{Config.DISK_API_VERSION}/disk/resources',
-        headers=headers,
-        params={'path': file_path, 'fields': 'public_url'}
-    ) as resp:
+    async with session.get(RESOURCE_URL,
+                           headers=headers,
+                           params={'path': file_path,
+                                   'fields': 'public_url'}) as resp:
         resp.raise_for_status()
-        return filename, (await resp.json())['public_url']
+        return (await resp.json())['public_url']
 
 
 async def _upload_files(files_list):

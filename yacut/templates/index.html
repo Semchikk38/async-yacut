@@ -29,18 +29,13 @@
     </div>
   </div>
 
-  {% with messages = get_flashed_messages() %}
-    {% if messages %}
-      <div class="row justify-content-center">
-        <div class="col-sm-6">
-          {% for message in messages %}
-            <div class="alert alert-success text-center">
-              {{ message|safe }}
-            </div>
-          {% endfor %}
-        </div>
+  {% if short_url %}
+    <div class="row justify-content-center">
+      <div class="col-sm-6 text-center">
+        <p>Ваша ссылка готова:</p>
+        <a href="{{ short_url }}">{{ short_url }}</a>
       </div>
-    {% endif %}
-  {% endwith %}
+    </div>
+  {% endif %}
 </section>
 {% endblock %}
