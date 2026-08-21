@@ -4,7 +4,6 @@ from urllib.parse import unquote
 import aiohttp
 
 from .config import Config
-from .models import URLMap
 
 AUTH_HEADERS = {'Authorization': f'OAuth {Config.DISK_TOKEN}'}
 RESOURCE_URL = (
