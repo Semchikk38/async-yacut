@@ -18,4 +18,5 @@ NOT_FOUND = 'Указанный id не найден'
 INVALID_SHORT_FORM = 'Только латинские буквы и цифры'
 
 REDIRECT_ENDPOINT = 'redirect_short'
-REDIRECT_URL_FUNC = 'main.redirect_short'
+MAIN_BLUEPRINT_NAME = 'main'
+REDIRECT_URL_FUNC = f'{MAIN_BLUEPRINT_NAME}.{REDIRECT_ENDPOINT}'

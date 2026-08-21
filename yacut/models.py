@@ -13,7 +13,9 @@ from .constants import (
     FORBIDDEN_SHORT,
     REDIRECT_URL_FUNC,
     SHORT_PATTERN,
+    INVALID_SHORT,
 )
+from .errors import ShortAlreadyExists
 
 
 class URLMap(db.Model):
@@ -23,12 +25,20 @@ class URLMap(db.Model):
     timestamp = db.Column(db.DateTime, default=datetime.datetime.utcnow)
 
     @staticmethod
-    def create(original, short=None, validate=False, commit=True):
+    def create(original, short=None, validate=True, commit=True):
+        if validate:
+            if not original or len(original) > ORIGINAL_MAX_LENGTH:
+                raise ValueError('Некорректная оригинальная ссылка')
+            if short is not None:
+                if short == FORBIDDEN_SHORT:
+                    raise ShortAlreadyExists()
+                if (not SHORT_PATTERN.match(short)
+                        or len(short) > SHORT_MAX_LENGTH):
+                    raise ValueError(INVALID_SHORT)
+                if URLMap.get(short):
+                    raise ShortAlreadyExists()
         if short is None:
             short = URLMap.generate_unique_short()
-        elif validate:
-            URLMap.validate_original(original)
-            URLMap.validate_short(short)
         url_map = URLMap(original=original, short=short)
         db.session.add(url_map)
         if commit:
@@ -46,19 +56,9 @@ class URLMap(db.Model):
             if short != FORBIDDEN_SHORT and not URLMap.get(short):
                 return short
         raise RuntimeError(
-            'Не удалось сгенерировать уникальную короткую ссылку.'
+            'Не удалось сгенерировать уникальную короткую ссылку '
+            f'за {MAX_ATTEMPTS} попыток.'
         )
-
-    @staticmethod
-    def validate_original(original):
-        if not original or len(original) > ORIGINAL_MAX_LENGTH:
-            raise ValueError('Некорректная оригинальная ссылка')
-
-    @staticmethod
-    def validate_short(short):
-        if (not SHORT_PATTERN.match(short)
-                or len(short) > SHORT_MAX_LENGTH):
-            raise ValueError('Некорректная короткая ссылка')
 
     def get_short_url(self):
         return url_for(REDIRECT_URL_FUNC, short=self.short, _external=True)

@@ -5,13 +5,11 @@ import aiohttp
 
 from .config import Config
 
-DISK_API_HOST = 'https://cloud-api.yandex.net'
-DISK_API_VERSION = 'v1'
 REQUEST_UPLOAD_URL = (
-    f'{DISK_API_HOST}/{DISK_API_VERSION}/disk/resources/upload'
+    f'{Config.DISK_API_HOST}/{Config.DISK_API_VERSION}/disk/resources/upload'
 )
 DOWNLOAD_LINK_URL = (
-    f'{DISK_API_HOST}/{DISK_API_VERSION}/disk/resources/download'
+    f'{Config.DISK_API_HOST}/{Config.DISK_API_VERSION}/disk/resources/download'
 )
 
 AUTH_HEADERS = {'Authorization': f'OAuth {Config.DISK_TOKEN}'}
