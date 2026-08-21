@@ -4,7 +4,6 @@ import aiohttp
 from urllib.parse import unquote
 
 from .config import Config
-from .models import URLMap
 
 AUTH_HEADERS = {'Authorization': f'OAuth {Config.DISK_TOKEN}'}
 

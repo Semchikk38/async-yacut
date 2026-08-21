@@ -8,7 +8,6 @@ from .constants import (
     MSG_INVALID_SHORT,
     MSG_ALREADY_EXISTS,
     MSG_NOT_FOUND,
-    MSG_FILES_FORBIDDEN,
     SHORT_MAX_LENGTH,
     SHORT_ID_PATTERN,
 )
