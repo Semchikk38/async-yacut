@@ -12,12 +12,6 @@ class InvalidAPIUsage(Exception):
         self.status_code = status_code
 
 
-class ShortAlreadyExists(InvalidAPIUsage):
-    def __init__(self):
-        super().__init__(
-            'Предложенный вариант короткой ссылки уже существует.')
-
-
 def page_not_found(e):
     if request.path.startswith('/api/'):
         return jsonify({'message': 'Ресурс не найден'}), HTTPStatus.NOT_FOUND

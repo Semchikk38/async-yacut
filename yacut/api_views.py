@@ -18,13 +18,18 @@ def create_short_link():
         raise InvalidAPIUsage(NO_URL)
 
     short = data.get('custom_id')
-    if not short:            # пустая строка → None
-        short = None
-
     try:
-        url_map = URLMap.create(original=data['url'], short=short)
-    except ValueError as exc:
-        raise InvalidAPIUsage(str(exc))
+        url_map = URLMap.create(
+            original=data['url'],
+            short=short,
+            validate=True
+        )
+    except InvalidAPIUsage:
+        raise
+    except Exception as exc:
+        raise InvalidAPIUsage(
+            str(exc), HTTPStatus.INTERNAL_SERVER_ERROR
+        )
 
     return jsonify({
         'url': url_map.original,

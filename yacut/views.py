@@ -2,11 +2,12 @@ from http import HTTPStatus
 
 from flask import Blueprint, render_template, redirect, flash, abort
 
-from .constants import ALREADY_EXISTS, REDIRECT_ENDPOINT
+from . import db
+from .constants import ALREADY_EXISTS, FORBIDDEN_SHORT, REDIRECT_ENDPOINT
+from .errors import InvalidAPIUsage
 from .forms import LinkForm, FileUploadForm
 from .models import URLMap
 from .utils import upload_files_to_disk
-from .errors import ShortAlreadyExists
 
 main = Blueprint('main', __name__)
 
@@ -18,14 +19,19 @@ def index():
         return render_template('index.html', form=form)
 
     original = form.original_link.data
-    short = form.custom_id.data or None   # пустая строка → None
+    short = form.custom_id.data
 
-    try:
-        url_map = URLMap.create(original=original, short=short)
-    except ShortAlreadyExists:
+    if short == FORBIDDEN_SHORT:
         flash(ALREADY_EXISTS)
         return render_template('index.html', form=form)
-    except ValueError as exc:
+
+    try:
+        url_map = URLMap.create(
+            original=original,
+            short=short,
+            validate=False
+        )
+    except InvalidAPIUsage as exc:
         flash(str(exc))
         return render_template('index.html', form=form)
 
@@ -48,15 +54,20 @@ def file_upload():
         flash(f'Ошибка при загрузке файлов: {exc}')
         return render_template('file_upload.html', form=form)
 
+    file_links = []
     try:
-        file_links = [
-            (file.filename, URLMap.create(original=public_url,
-                                          short=None,
-                                          commit=(idx == len(files) - 1)
-                                          ).get_short_url())
-            for idx, (file, public_url) in enumerate(zip(files, public_urls))
-        ]
-    except ValueError as exc:
+        for file_index, (file, public_url
+                         ) in enumerate(zip(files, public_urls)):
+            commit = (file_index == len(files) - 1)
+            url_map = URLMap.create(
+                original=public_url,
+                short=None,
+                validate=True,
+                commit=commit
+            )
+            file_links.append((file.filename, url_map.get_short_url()))
+    except InvalidAPIUsage as exc:
+        db.session.rollback()
         flash(str(exc))
         return render_template('file_upload.html', form=form)
 

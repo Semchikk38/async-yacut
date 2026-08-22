@@ -2,6 +2,7 @@ import datetime
 import random
 
 from flask import url_for
+from sqlalchemy.exc import IntegrityError
 
 from . import db
 from .constants import (
@@ -14,8 +15,9 @@ from .constants import (
     REDIRECT_URL_FUNC,
     SHORT_PATTERN,
     INVALID_SHORT,
+    ALREADY_EXISTS,
 )
-from .errors import ShortAlreadyExists
+from .errors import InvalidAPIUsage
 
 
 class URLMap(db.Model):
@@ -26,23 +28,33 @@ class URLMap(db.Model):
 
     @staticmethod
     def create(original, short=None, validate=True, commit=True):
+        if short == '':
+            short = None
+
         if validate:
-            if not original or len(original) > ORIGINAL_MAX_LENGTH:
-                raise ValueError('Некорректная оригинальная ссылка')
+            if len(original) > ORIGINAL_MAX_LENGTH:
+                raise InvalidAPIUsage(
+                    f'Длина оригинальной ссылки не должна превышать '
+                    f'{ORIGINAL_MAX_LENGTH} символов'
+                )
             if short is not None:
-                if short == FORBIDDEN_SHORT:
-                    raise ShortAlreadyExists()
-                if (not SHORT_PATTERN.match(short)
-                        or len(short) > SHORT_MAX_LENGTH):
-                    raise ValueError(INVALID_SHORT)
-                if URLMap.get(short):
-                    raise ShortAlreadyExists()
+                if len(short
+                       ) > SHORT_MAX_LENGTH or not SHORT_PATTERN.match(short):
+                    raise InvalidAPIUsage(INVALID_SHORT)
+                if short == FORBIDDEN_SHORT or URLMap.get(short):
+                    raise InvalidAPIUsage(ALREADY_EXISTS)
+
         if short is None:
             short = URLMap.generate_unique_short()
+
         url_map = URLMap(original=original, short=short)
         db.session.add(url_map)
         if commit:
-            db.session.commit()
+            try:
+                db.session.commit()
+            except IntegrityError:
+                db.session.rollback()
+                raise InvalidAPIUsage(ALREADY_EXISTS)
         return url_map
 
     @staticmethod
@@ -57,7 +69,7 @@ class URLMap(db.Model):
                 return short
         raise RuntimeError(
             'Не удалось сгенерировать уникальную короткую ссылку '
-            f'за {MAX_ATTEMPTS} попыток.'
+            f'после {MAX_ATTEMPTS} попыток.'
         )
 
     def get_short_url(self):
