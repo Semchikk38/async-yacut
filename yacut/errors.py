@@ -28,6 +28,7 @@ def internal_error(e):
 
 
 def handle_invalid_api_usage(error):
+    db.session.rollback()
     response = jsonify({'message': error.message})
     response.status_code = error.status_code
     return response

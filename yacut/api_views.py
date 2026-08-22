@@ -1,10 +1,11 @@
 from http import HTTPStatus
 
 from flask import Blueprint, request, jsonify
+from sqlalchemy.exc import IntegrityError
 
-from .constants import EMPTY_BODY, NO_URL, NOT_FOUND
+from .constants import EMPTY_BODY, NO_URL, NOT_FOUND, ALREADY_EXISTS
 from .errors import InvalidAPIUsage
-from .models import URLMap
+from .models import URLMap, ShortAlreadyExists
 
 api = Blueprint('api', __name__, url_prefix='/api')
 
@@ -19,17 +20,13 @@ def create_short_link():
 
     short = data.get('custom_id')
     try:
-        url_map = URLMap.create(
-            original=data['url'],
-            short=short,
-            validate=True
-        )
-    except InvalidAPIUsage:
-        raise
-    except Exception as exc:
-        raise InvalidAPIUsage(
-            str(exc), HTTPStatus.INTERNAL_SERVER_ERROR
-        )
+        url_map = URLMap.create(original=data['url'], short=short)
+    except ShortAlreadyExists as exc:
+        raise InvalidAPIUsage(str(exc))
+    except ValueError as exc:
+        raise InvalidAPIUsage(str(exc))
+    except IntegrityError:
+        raise InvalidAPIUsage(ALREADY_EXISTS)
 
     return jsonify({
         'url': url_map.original,

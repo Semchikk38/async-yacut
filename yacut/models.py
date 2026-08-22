@@ -2,7 +2,6 @@ import datetime
 import random
 
 from flask import url_for
-from sqlalchemy.exc import IntegrityError
 
 from . import db
 from .constants import (
@@ -17,7 +16,11 @@ from .constants import (
     INVALID_SHORT,
     ALREADY_EXISTS,
 )
-from .errors import InvalidAPIUsage
+
+
+class ShortAlreadyExists(Exception):
+    def __init__(self):
+        super().__init__(ALREADY_EXISTS)
 
 
 class URLMap(db.Model):
@@ -27,37 +30,30 @@ class URLMap(db.Model):
     timestamp = db.Column(db.DateTime, default=datetime.datetime.utcnow)
 
     @staticmethod
-    def _validate(original, short):
-        if len(original) > ORIGINAL_MAX_LENGTH:
-            raise InvalidAPIUsage(
-                f'Длина оригинальной ссылки не должна превышать '
-                f'{ORIGINAL_MAX_LENGTH} символов'
-            )
-        if short is not None:
-            if len(short) > SHORT_MAX_LENGTH or not SHORT_PATTERN.match(short):
-                raise InvalidAPIUsage(INVALID_SHORT)
-            if short == FORBIDDEN_SHORT or URLMap.get(short):
-                raise InvalidAPIUsage(ALREADY_EXISTS)
-
-    @staticmethod
     def create(original, short=None, validate=True, commit=True):
         if short == '':
             short = None
 
         if validate:
-            URLMap._validate(original, short)
+            if len(original) > ORIGINAL_MAX_LENGTH:
+                raise ValueError(
+                    f'Длина оригинальной ссылки не должна превышать '
+                    f'{ORIGINAL_MAX_LENGTH} символов.'
+                )
+            if short:
+                if len(short
+                       ) > SHORT_MAX_LENGTH or not SHORT_PATTERN.match(short):
+                    raise ValueError(INVALID_SHORT)
+                if short == FORBIDDEN_SHORT or URLMap.get(short):
+                    raise ShortAlreadyExists()
 
-        if short is None:
+        if not short:
             short = URLMap.generate_unique_short()
 
         url_map = URLMap(original=original, short=short)
         db.session.add(url_map)
         if commit:
-            try:
-                db.session.commit()
-            except IntegrityError:
-                db.session.rollback()
-                raise InvalidAPIUsage(ALREADY_EXISTS)
+            db.session.commit()
         return url_map
 
     @staticmethod

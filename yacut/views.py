@@ -4,9 +4,8 @@ from flask import Blueprint, render_template, redirect, flash, abort
 
 from . import db
 from .constants import ALREADY_EXISTS, FORBIDDEN_SHORT, REDIRECT_ENDPOINT
-from .errors import InvalidAPIUsage
 from .forms import LinkForm, FileUploadForm
-from .models import URLMap
+from .models import URLMap, ShortAlreadyExists
 from .utils import upload_files_to_disk
 
 main = Blueprint('main', __name__)
@@ -25,13 +24,20 @@ def index():
         flash(ALREADY_EXISTS)
         return render_template('index.html', form=form)
 
+    if short and URLMap.get(short):
+        flash(ALREADY_EXISTS)
+        return render_template('index.html', form=form)
+
     try:
         url_map = URLMap.create(
             original=original,
             short=short,
             validate=False
         )
-    except InvalidAPIUsage as exc:
+    except ShortAlreadyExists:
+        flash(ALREADY_EXISTS)
+        return render_template('index.html', form=form)
+    except ValueError as exc:
         flash(str(exc))
         return render_template('index.html', form=form)
 
@@ -54,19 +60,20 @@ def file_upload():
         flash(f'Ошибка при загрузке файлов: {exc}')
         return render_template('file_upload.html', form=form)
 
-    file_links = []
     try:
-        for file_index, (file, public_url
-                         ) in enumerate(zip(files, public_urls)):
-            commit = (file_index == len(files) - 1)
-            url_map = URLMap.create(
-                original=public_url,
-                short=None,
-                validate=True,
-                commit=commit
-            )
-            file_links.append((file.filename, url_map.get_short_url()))
-    except InvalidAPIUsage as exc:
+        file_links = [
+            (file.filename,
+             URLMap.create(original=public_url,
+                           validate=True,
+                           commit=False).get_short_url())
+            for file, public_url in zip(files, public_urls)
+        ]
+        db.session.commit()
+    except ShortAlreadyExists:
+        db.session.rollback()
+        flash(ALREADY_EXISTS)
+        return render_template('file_upload.html', form=form)
+    except ValueError as exc:
         db.session.rollback()
         flash(str(exc))
         return render_template('file_upload.html', form=form)
