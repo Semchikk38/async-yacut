@@ -27,22 +27,25 @@ class URLMap(db.Model):
     timestamp = db.Column(db.DateTime, default=datetime.datetime.utcnow)
 
     @staticmethod
+    def _validate(original, short):
+        if len(original) > ORIGINAL_MAX_LENGTH:
+            raise InvalidAPIUsage(
+                f'Длина оригинальной ссылки не должна превышать '
+                f'{ORIGINAL_MAX_LENGTH} символов'
+            )
+        if short is not None:
+            if len(short) > SHORT_MAX_LENGTH or not SHORT_PATTERN.match(short):
+                raise InvalidAPIUsage(INVALID_SHORT)
+            if short == FORBIDDEN_SHORT or URLMap.get(short):
+                raise InvalidAPIUsage(ALREADY_EXISTS)
+
+    @staticmethod
     def create(original, short=None, validate=True, commit=True):
         if short == '':
             short = None
 
         if validate:
-            if len(original) > ORIGINAL_MAX_LENGTH:
-                raise InvalidAPIUsage(
-                    f'Длина оригинальной ссылки не должна превышать '
-                    f'{ORIGINAL_MAX_LENGTH} символов'
-                )
-            if short is not None:
-                if len(short
-                       ) > SHORT_MAX_LENGTH or not SHORT_PATTERN.match(short):
-                    raise InvalidAPIUsage(INVALID_SHORT)
-                if short == FORBIDDEN_SHORT or URLMap.get(short):
-                    raise InvalidAPIUsage(ALREADY_EXISTS)
+            URLMap._validate(original, short)
 
         if short is None:
             short = URLMap.generate_unique_short()
