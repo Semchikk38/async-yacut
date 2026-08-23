@@ -21,12 +21,11 @@ def create_short_link():
     short = data.get('custom_id')
     try:
         url_map = URLMap.create(original=data['url'], short=short)
-    except ShortAlreadyExists as exc:
-        raise InvalidAPIUsage(str(exc))
-    except ValueError as exc:
-        raise InvalidAPIUsage(str(exc))
-    except IntegrityError:
-        raise InvalidAPIUsage(ALREADY_EXISTS)
+    except (ValueError, ShortAlreadyExists, IntegrityError, RuntimeError
+            ) as exc:
+        message = exc.args[0] if not isinstance(
+            exc, IntegrityError) else ALREADY_EXISTS
+        raise InvalidAPIUsage(message)
 
     return jsonify({
         'url': url_map.original,

@@ -2,6 +2,7 @@ import datetime
 import random
 
 from flask import url_for
+from sqlalchemy.exc import IntegrityError
 
 from . import db
 from .constants import (
@@ -31,14 +32,11 @@ class URLMap(db.Model):
 
     @staticmethod
     def create(original, short=None, validate=True, commit=True):
-        if short == '':
-            short = None
-
         if validate:
             if len(original) > ORIGINAL_MAX_LENGTH:
                 raise ValueError(
-                    f'Длина оригинальной ссылки не должна превышать '
-                    f'{ORIGINAL_MAX_LENGTH} символов.'
+                    'The length limit of the original link has been exceeded: '
+                    f'{ORIGINAL_MAX_LENGTH}'
                 )
             if short:
                 if len(short
@@ -53,7 +51,11 @@ class URLMap(db.Model):
         url_map = URLMap(original=original, short=short)
         db.session.add(url_map)
         if commit:
-            db.session.commit()
+            try:
+                db.session.commit()
+            except IntegrityError:
+                db.session.rollback()
+                raise ShortAlreadyExists()
         return url_map
 
     @staticmethod
@@ -67,8 +69,8 @@ class URLMap(db.Model):
             if short != FORBIDDEN_SHORT and not URLMap.get(short):
                 return short
         raise RuntimeError(
-            'Не удалось сгенерировать уникальную короткую ссылку '
-            f'после {MAX_ATTEMPTS} попыток.'
+            'Failed to generate a unique short link. '
+            f'Number of attempts: {MAX_ATTEMPTS}'
         )
 
     def get_short_url(self):

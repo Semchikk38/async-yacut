@@ -1,9 +1,9 @@
 from http import HTTPStatus
 
 from flask import Blueprint, render_template, redirect, flash, abort
+from sqlalchemy.exc import IntegrityError
 
-from . import db
-from .constants import ALREADY_EXISTS, FORBIDDEN_SHORT, REDIRECT_ENDPOINT
+from .constants import ALREADY_EXISTS, REDIRECT_ENDPOINT
 from .forms import LinkForm, FileUploadForm
 from .models import URLMap, ShortAlreadyExists
 from .utils import upload_files_to_disk
@@ -17,28 +17,16 @@ def index():
     if not form.validate_on_submit():
         return render_template('index.html', form=form)
 
-    original = form.original_link.data
-    short = form.custom_id.data
-
-    if short == FORBIDDEN_SHORT:
-        flash(ALREADY_EXISTS)
-        return render_template('index.html', form=form)
-
-    if short and URLMap.get(short):
-        flash(ALREADY_EXISTS)
-        return render_template('index.html', form=form)
-
     try:
         url_map = URLMap.create(
-            original=original,
-            short=short,
-            validate=False
+            original=form.original_link.data,
+            short=form.custom_id.data
         )
-    except ShortAlreadyExists:
-        flash(ALREADY_EXISTS)
-        return render_template('index.html', form=form)
-    except ValueError as exc:
-        flash(str(exc))
+    except (ValueError, ShortAlreadyExists, IntegrityError, RuntimeError
+            ) as exc:
+        message = ALREADY_EXISTS if isinstance(
+            exc, ShortAlreadyExists) else str(exc)
+        flash(message)
         return render_template('index.html', form=form)
 
     return render_template('index.html', form=form,
@@ -63,19 +51,19 @@ def file_upload():
     try:
         file_links = [
             (file.filename,
-             URLMap.create(original=public_url,
-                           validate=True,
-                           commit=False).get_short_url())
-            for file, public_url in zip(files, public_urls)
+             URLMap.create(
+                 original=public_url,
+                 validate=True,
+                 commit=(file_index == len(files) - 1)
+             ).get_short_url())
+            for file_index, (
+                file, public_url) in enumerate(zip(files, public_urls))
         ]
-        db.session.commit()
-    except ShortAlreadyExists:
-        db.session.rollback()
-        flash(ALREADY_EXISTS)
-        return render_template('file_upload.html', form=form)
-    except ValueError as exc:
-        db.session.rollback()
-        flash(str(exc))
+    except (ValueError, ShortAlreadyExists, IntegrityError, RuntimeError
+            ) as exc:
+        message = ALREADY_EXISTS if isinstance(
+            exc, ShortAlreadyExists) else str(exc)
+        flash(message)
         return render_template('file_upload.html', form=form)
 
     return render_template('file_upload.html', form=form,
